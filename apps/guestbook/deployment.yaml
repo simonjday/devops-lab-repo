@@ -31,7 +31,7 @@ spec:
         fsGroup: 2000
       containers:
         - name: guestbook
-          image: gcr.io/google-samples/gb-frontend:v4
+          image: us-docker.pkg.dev/google-samples/containers/gke/gb-frontend:v5
           ports:
             - containerPort: 80
               name: http
