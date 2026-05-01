@@ -7,6 +7,42 @@
 
 ---
 
+## Bifrost Setup
+
+**This walkthrough does not duplicate Bifrost installation.** Bifrost setup — including Helm install, MCP SSE server, Ollama, and provider registration — is fully documented and scripted in:
+
+```
+https://github.com/simonjday/bifrost-k8s-demo
+```
+
+Run the setup from that repo first, then come back here to run the demos against `kind-devops-lab`.
+
+### What the bifrost-k8s-demo repo handles
+
+| Script | What it does |
+|--------|-------------|
+| `scripts/install.sh` | Installs Bifrost via Helm into the `ai-gateway` namespace, registers Anthropic provider, creates MCP service and endpoints, creates a read-only virtual key |
+| `scripts/start-mcp-server.sh` | Starts `kubernetes-mcp-server` in SSE mode on `0.0.0.0:8811` |
+| `scripts/warmup-ollama.sh` | Pre-warms Ollama models before demo (optional) |
+
+### Adapter — point MCP server at kind-devops-lab instead of k3d-demo
+
+The bifrost-k8s-demo MCP server picks up whichever context is active in your kubeconfig. Before starting the MCP server, switch to the devops-lab cluster:
+
+```bash
+kubectl config use-context kind-devops-lab
+kubectl config current-context   # confirm: kind-devops-lab
+
+# Then start the MCP server as documented in bifrost-k8s-demo:
+./scripts/start-mcp-server.sh
+```
+
+The MCP server will now serve tools for `kind-devops-lab`. Everything else (Bifrost install, virtual key, provider config) stays exactly as documented in the other repo.
+
+> **Note on Bifrost namespace:** Bifrost itself runs in `ai-gateway` on your cluster (whichever cluster it was installed to). The MCP server runs on your Mac and connects to whatever Kubernetes context is active. You can run Bifrost on `k3d-demo` and point the MCP server at `kind-devops-lab` simultaneously — they are independent.
+
+---
+
 ## Pre-Demo Setup
 
 ### 1 — Infrastructure check
