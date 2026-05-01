@@ -28,12 +28,12 @@ devops-lab-repo/
 ├── prometheus/
 │   └── rules/              # PrometheusRule — app health + Kyverno alerts
 ├── scripts/
-│   ├── bootstrap-repo.sh   # Full end-to-end: kind cluster + platform + GitHub + ArgoCD
-│   ├── port-forwards.sh    # Open all service UIs in one command
-│   ├── bifrost-mcp-setup.sh # Generate viewer kubeconfig for Bifrost/MCP
-│   └── demo-flow.sh        # Interactive demo runner (argocd/kyverno/prometheus/mcp)
-└── .github/workflows/
-    └── validate.yaml       # kubeconform + kyverno-cli CI on every PR
+│   ├── bootstrap-repo.sh    # Full end-to-end: kind cluster + platform + GitHub + ArgoCD
+│   ├── port-forwards.sh     # Open all service UIs in one command (platform + apps)
+│   └── bifrost-mcp-setup.sh # Generate viewer kubeconfig for Bifrost/MCP
+├── .github/workflows/
+│   └── validate.yaml        # kubeconform + kyverno-cli CI on every PR
+└── DEMO-WALKTHROUGH.md      # Step-by-step manual demo guide (7 scenarios)
 ```
 
 ---
@@ -73,20 +73,24 @@ The script is **idempotent** — safe to re-run if anything fails partway throug
 
 All UIs are available directly on `localhost` — no `kubectl port-forward` needed because the kind cluster is created with `extraPortMappings`.
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| ArgoCD | http://localhost:9080 | admin / (printed at end of bootstrap) |
-| Grafana | http://localhost:3000 | admin / admin |
-| Prometheus | http://localhost:9090 | — |
-| Alertmanager | http://localhost:9093 | — |
+| Service | URL | Credentials | Access method |
+|---------|-----|-------------|---------------|
+| ArgoCD | http://localhost:9080 | admin / (printed at bootstrap) | kind extraPortMapping |
+| Grafana | http://localhost:3000 | admin / admin | kind extraPortMapping |
+| Prometheus | http://localhost:9090 | — | kind extraPortMapping |
+| Alertmanager | http://localhost:9093 | — | kind extraPortMapping |
+| Guestbook | http://localhost:8888 | — | `port-forwards.sh apps` |
+| Podinfo | http://localhost:9898 | — | `port-forwards.sh apps` |
 
 > **Note:** `extraPortMappings` are only configured if the cluster was created by `bootstrap-repo.sh`. If you have a pre-existing kind cluster, use `./scripts/port-forwards.sh` instead.
 
 ```bash
-# Open all UIs via port-forward (for pre-existing clusters)
-./scripts/port-forwards.sh start    # starts all 4 in background
-./scripts/port-forwards.sh stop     # kills them all
-./scripts/port-forwards.sh status   # check which are running
+# Open all UIs via port-forward (for pre-existing clusters without extraPortMappings)
+./scripts/port-forwards.sh           # start everything (platform + apps)
+./scripts/port-forwards.sh platform  # platform UIs only (ArgoCD/Grafana/Prometheus)
+./scripts/port-forwards.sh apps      # sample apps only (guestbook/podinfo)
+./scripts/port-forwards.sh stop      # stop all
+./scripts/port-forwards.sh status    # check what's running
 ```
 
 ---
@@ -131,13 +135,29 @@ syncOptions:
 Exposes real Prometheus metrics at `:9898/metrics` out of the box. The load-generator fires continuous HTTP traffic so Grafana dashboards populate immediately.
 
 ```bash
-kubectl port-forward svc/podinfo 9898:9898 -n apps
+# Access via port-forward (included in ./scripts/port-forwards.sh apps)
 open http://localhost:9898
+
+# Or hit the API directly
+curl http://localhost:9898/
+curl http://localhost:9898/metrics
+curl http://localhost:9898/env
 ```
 
 ### guestbook
 
-> **Image note:** The original `gcr.io/google-samples/gb-frontend:v4` was removed by Google from GCR. This repo uses the current location: `us-docker.pkg.dev/google-samples/containers/gke/gb-frontend:v5`
+> **Image note:** The original `gcr.io/google-samples/gb-frontend:v4` was removed by Google from GCR. This repo uses: `us-docker.pkg.dev/google-samples/containers/gke/gb-frontend:v5`
+
+The guestbook lets you submit and read messages — it requires a Redis backend to function. The full stack is defined in `apps/guestbook/redis.yaml` and includes a redis-leader (writes) and two redis-followers (reads). The frontend discovers them by DNS via `GET_HOSTS_FROM=dns`.
+
+```bash
+# Access via port-forward
+./scripts/port-forwards.sh apps
+open http://localhost:8888
+
+# Show the full stack
+kubectl get deployments,services -n apps -l "app in (guestbook,redis-leader,redis-follower)"
+```
 
 Good for ArgoCD drift demos — scale it down directly and watch self-heal trigger.
 
@@ -230,17 +250,25 @@ The Kubernetes MCP server (`kubernetes-local`) can be pointed at the `kind-devop
 
 ---
 
-## Demo Flow
+## Demo Walkthrough
+
+The demo is documented as a manual step-by-step guide in **`DEMO-WALKTHROUGH.md`** at the root of this repo. Each scenario has a narrative, exact commands to run, and expected output.
+
+| Scenario | What you demonstrate |
+|----------|---------------------|
+| 1 — Cluster Tour | Nodes, namespaces, Kyverno label mutation on live pods |
+| 2 — ArgoCD GitOps | Drift detection, self-heal, sync history, ApplicationSet |
+| 3 — Kyverno Policies | Compliant pass, audit violations, enforce block |
+| 4 — Sample Apps | Guestbook with Redis, podinfo API + metrics, load-generator |
+| 5 — Prometheus & Grafana | Targets, PromQL queries, alerting rules, dashboards |
+| 6 — GitOps Change Flow | Edit → push → ArgoCD deploys → rollback via Git revert |
+| 7 — MCP / AI Integration | Viewer SA, read-only scope, example Claude queries |
 
 ```bash
-# Run all scenarios in sequence
-./scripts/demo-flow.sh all
-
-# Or run individually
-./scripts/demo-flow.sh argocd      # GitOps drift detection + self-heal
-./scripts/demo-flow.sh kyverno     # Policy enforce (blocked) + audit (logged)
-./scripts/demo-flow.sh prometheus  # Live metrics, port-forward, alert firing
-./scripts/demo-flow.sh mcp         # Bifrost/MCP kubeconfig + config output
+# Before starting — open all UIs and confirm cluster is healthy
+./scripts/port-forwards.sh
+kubectl get applications -n argocd
+kubectl get pods -n apps
 ```
 
 ---
@@ -266,6 +294,8 @@ Every PR triggers `.github/workflows/validate.yaml` which runs:
 | `sed` errors on macOS during bootstrap | BSD sed vs GNU sed `-i` syntax | ✅ Fixed — bootstrap uses `perl -pi` which is cross-platform |
 | `gh repo create --org` flag not found | Flag removed in newer `gh` CLI versions | ✅ Fixed — uses `owner/repo-name` format instead |
 | ArgoCD CRD not found on first run | Script exited before CRDs were installed | ✅ Fixed — bootstrap installs and waits for CRDs before applying CRs |
+| `port-forwards.sh: declare: -A: invalid option` | macOS ships bash 3.2 which has no associative arrays | ✅ Fixed — script uses indexed arrays compatible with bash 3.2+ |
+| Guestbook submit does nothing | Redis backend not deployed | ✅ Fixed — `apps/guestbook/redis.yaml` deploys leader + 2 followers |
 
 ---
 
