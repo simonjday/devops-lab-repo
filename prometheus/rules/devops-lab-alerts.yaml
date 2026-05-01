@@ -20,6 +20,7 @@ spec:
           annotations:
             summary: "Pod {{ $labels.pod }} is crash-looping"
             description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} restarted more than 3 times in 10m."
+
         - alert: DeploymentReplicasMismatch
           expr: kube_deployment_spec_replicas{namespace=~"apps|apps-staging"} != kube_deployment_status_available_replicas{namespace=~"apps|apps-staging"}
           for: 5m
@@ -29,6 +30,7 @@ spec:
           annotations:
             summary: "Deployment {{ $labels.deployment }} has unavailable replicas"
             description: "{{ $labels.namespace }}/{{ $labels.deployment }} has unavailable replicas."
+
         - alert: PodNotReady
           expr: kube_pod_status_phase{namespace=~"apps|apps-staging", phase=~"Pending|Unknown"} > 0
           for: 5m
@@ -38,6 +40,7 @@ spec:
           annotations:
             summary: "Pod {{ $labels.pod }} is not ready"
             description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has been non-ready for 5 minutes."
+
     - name: resource.pressure
       interval: 60s
       rules:
@@ -50,6 +53,7 @@ spec:
           annotations:
             summary: "Node {{ $labels.instance }} memory < 10% free"
             description: "Node {{ $labels.instance }} has less than 10% memory available."
+
     - name: kyverno.policy
       interval: 60s
       rules:
@@ -62,6 +66,7 @@ spec:
           annotations:
             summary: "Kyverno policy violation"
             description: "Policy {{ $labels.policy_name }} had violations in the last 5m."
+
         - alert: KyvernoHighViolationRate
           expr: sum(rate(kyverno_policy_results_total{rule_result="fail"}[10m])) > 1
           for: 5m

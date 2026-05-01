@@ -7,8 +7,8 @@ metadata:
     policies.kyverno.io/category: Best Practices
     policies.kyverno.io/severity: medium
     policies.kyverno.io/description: >-
-      The 'latest' tag is mutable and makes deployments non-reproducible.
-      All images must use a specific, pinned tag.
+      The latest tag is mutable and makes deployments non-reproducible.
+      All images must use a specific pinned tag.
 spec:
   validationFailureAction: Audit
   background: true
@@ -17,8 +17,11 @@ spec:
       match:
         any:
           - resources:
-              kinds: [Pod]
-              namespaces: [apps, apps-staging]
+              kinds:
+                - Pod
+              namespaces:
+                - apps
+                - apps-staging
       validate:
         message: "Image tag ':latest' is not allowed. Pin to a specific version tag."
         foreach:
@@ -31,4 +34,5 @@ spec:
                     value: "*:latest"
                   - key: "{{ element.image }}"
                     operator: AnyNotIn
-                    value: ["*:*"]
+                    value:
+                      - "*:*"
