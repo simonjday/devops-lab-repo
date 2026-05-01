@@ -1,0 +1,18 @@
+# ── VIOLATION: missing resource limits ────────────────────────────────────────
+# This pod will generate an AUDIT violation for require-resource-limits
+# Apply and watch: kubectl get policyreport -n policy-test -o yaml
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: missing-limits
+  namespace: policy-test
+  labels:
+    app: policy-test
+    env: dev
+    test-type: violation
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      # No resources block — intentional violation

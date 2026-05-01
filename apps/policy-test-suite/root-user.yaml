@@ -1,0 +1,22 @@
+# ── VIOLATION: runs as root ────────────────────────────────────────────────────
+# Triggers disallow-root-user audit violation
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: root-user-pod
+  namespace: policy-test
+  labels:
+    app: policy-test
+    env: dev
+    test-type: violation
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      resources:
+        limits: {cpu: "100m", memory: "64Mi"}
+        requests: {cpu: "50m", memory: "32Mi"}
+      securityContext:
+        runAsUser: 0        # ← root
+        runAsNonRoot: false # ← violation

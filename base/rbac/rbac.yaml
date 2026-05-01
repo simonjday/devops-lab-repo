@@ -1,0 +1,51 @@
+# RBAC — read-only viewer for the apps namespace (useful for MCP / Bifrost service accounts)
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devops-lab-viewer
+  namespace: apps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: devops-lab-viewer
+rules:
+  - apiGroups: [""]
+    resources: [pods, services, endpoints, configmaps, events, namespaces]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, daemonsets, statefulsets]
+    verbs: [get, list, watch]
+  - apiGroups: [argoproj.io]
+    resources: [applications, applicationsets]
+    verbs: [get, list, watch]
+  - apiGroups: [kyverno.io]
+    resources: [clusterpolicies, policies, policyreports, clusterpolicyreports]
+    verbs: [get, list, watch]
+  - apiGroups: [monitoring.coreos.com]
+    resources: [prometheusrules, servicemonitors, podmonitors]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: devops-lab-viewer
+subjects:
+  - kind: ServiceAccount
+    name: devops-lab-viewer
+    namespace: apps
+roleRef:
+  kind: ClusterRole
+  name: devops-lab-viewer
+  apiGroup: rbac.authorization.k8s.io
+---
+# Token secret for the viewer SA (for MCP / external tool access)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: devops-lab-viewer-token
+  namespace: apps
+  annotations:
+    kubernetes.io/service-account.name: devops-lab-viewer
+type: kubernetes.io/service-account-token

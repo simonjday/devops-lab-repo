@@ -1,0 +1,90 @@
+# Load Generator — generates HTTP traffic to podinfo to drive Prometheus metrics
+# Runs k6 in a loop; great for making Grafana dashboards come alive
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-script
+  namespace: apps
+  labels:
+    app: load-generator
+    env: dev
+data:
+  script.js: |
+    import http from 'k6/http';
+    import { sleep, check } from 'k6';
+    import { Rate } from 'k6/metrics';
+
+    const errorRate = new Rate('errors');
+
+    export let options = {
+      vus: 5,
+      duration: '9999h',  // run until killed
+      thresholds: {
+        http_req_duration: ['p(95)<500'],
+        errors: ['rate<0.1'],
+      },
+    };
+
+    const BASE_URL = `http://podinfo.apps.svc.cluster.local:9898`;
+
+    export default function () {
+      // Mix of endpoints to generate diverse metrics
+      const endpoints = ['/', '/healthz', '/readyz', '/env', '/headers'];
+      const path = endpoints[Math.floor(Math.random() * endpoints.length)];
+
+      const res = http.get(`${BASE_URL}${path}`);
+      const ok = check(res, { 'status 200': (r) => r.status === 200 });
+      errorRate.add(!ok);
+
+      sleep(Math.random() * 2 + 0.5);
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-generator
+  namespace: apps
+  labels:
+    app: load-generator
+    env: dev
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: load-generator
+  template:
+    metadata:
+      labels:
+        app: load-generator
+        env: dev
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: k6
+          image: grafana/k6:0.51.0
+          args: ["run", "/scripts/script.js"]
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: [ALL]
+      volumes:
+        - name: script
+          configMap:
+            name: k6-script

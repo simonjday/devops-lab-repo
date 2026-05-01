@@ -1,0 +1,42 @@
+# ArgoCD AppProject — scopes what repos and destinations apps can use
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: devops-lab
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "DevOps Learning Lab — all demo applications"
+  sourceRepos:
+    - '*'   # Allow any repo (tighten in production)
+  destinations:
+    - namespace: apps
+      server: https://kubernetes.default.svc
+    - namespace: apps-staging
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: kyverno
+      server: https://kubernetes.default.svc
+    - namespace: policy-test
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: ClusterPolicy          # Allow Kyverno ClusterPolicies
+    - group: '*'
+      kind: ClusterRole
+    - group: '*'
+      kind: ClusterRoleBinding
+    - group: monitoring.coreos.com
+      kind: PrometheusRule
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota          # Don't let apps override quotas
+  roles:
+    - name: read-only
+      description: Read-only access for CI/external tools (Bifrost, MCP)
+      policies:
+        - p, proj:devops-lab:read-only, applications, get, devops-lab/*, allow
+      groups:
+        - devops-lab-viewers

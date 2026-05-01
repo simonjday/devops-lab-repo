@@ -1,0 +1,16 @@
+# ── VIOLATION: missing required labels ────────────────────────────────────────
+# Missing 'app' and 'env' labels — triggers require-pod-labels in audit mode
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: missing-labels
+  namespace: policy-test
+  # No labels at all
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      resources:
+        limits: {cpu: "100m", memory: "64Mi"}
+        requests: {cpu: "50m", memory: "32Mi"}

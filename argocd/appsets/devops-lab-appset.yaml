@@ -1,0 +1,58 @@
+# ApplicationSet — generates all devops-lab apps from a list
+# This is the single entrypoint: apply this one resource and ArgoCD manages everything
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: devops-lab
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - name: guestbook
+            path: apps/guestbook
+            namespace: apps
+          - name: podinfo
+            path: apps/podinfo
+            namespace: apps
+          - name: load-generator
+            path: apps/load-generator
+            namespace: apps
+          - name: kyverno-policies
+            path: kyverno/policies
+            namespace: kyverno
+          - name: prometheus-rules
+            path: prometheus/rules
+            namespace: monitoring
+  template:
+    metadata:
+      name: "{{.name}}"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: devops-lab
+        generator: appset
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: devops-lab
+      source:
+        repoURL: https://github.com/YOUR_ORG/devops-lab-repo  # UPDATE THIS
+        targetRevision: HEAD
+        path: "{{.path}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{.namespace}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

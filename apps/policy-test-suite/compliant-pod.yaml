@@ -1,0 +1,37 @@
+# ── COMPLIANT ─────────────────────────────────────────────────────────────────
+# This pod passes ALL Kyverno policies. Use as a reference / positive test case.
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: compliant-pod
+  namespace: policy-test
+  labels:
+    app: policy-test
+    env: dev
+    test-type: compliant
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 2000
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      ports:
+        - containerPort: 8080
+      resources:
+        requests:
+          cpu: "50m"
+          memory: "32Mi"
+        limits:
+          cpu: "100m"
+          memory: "64Mi"
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: false
+        runAsNonRoot: true
+        runAsUser: 1000
+        privileged: false
+        capabilities:
+          drop: [ALL]

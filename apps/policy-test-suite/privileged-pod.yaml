@@ -1,0 +1,23 @@
+# ── VIOLATION: privileged container ───────────────────────────────────────────
+# This pod WILL BE BLOCKED (Enforce mode) by disallow-privileged-containers
+# Apply with: kubectl apply -f privileged-pod.yaml
+# Expected: Error from server: ... disallow-privileged-containers
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: privileged-pod
+  namespace: policy-test
+  labels:
+    app: policy-test
+    env: dev
+    test-type: enforce-violation
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      resources:
+        limits: {cpu: "100m", memory: "64Mi"}
+        requests: {cpu: "50m", memory: "32Mi"}
+      securityContext:
+        privileged: true   # ← will be BLOCKED

@@ -1,0 +1,65 @@
+# GitHub Actions — validate all manifests on every PR
+name: Validate Kubernetes Manifests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate with kubeconform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSLo kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar xf kubeconform.tar.gz
+          chmod +x kubeconform
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate manifests
+        run: |
+          find . -name '*.yaml' -not -path './.github/*' | \
+          kubeconform \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -summary \
+            -verbose
+
+  kyverno-test:
+    name: Test Kyverno policies (kyverno-cli)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Kyverno CLI
+        run: |
+          curl -sSLo kyverno.tar.gz \
+            https://github.com/kyverno/kyverno/releases/latest/download/kyverno-cli_linux_x86_64.tar.gz
+          tar xf kyverno.tar.gz
+          chmod +x kyverno
+          sudo mv kyverno /usr/local/bin/
+
+      - name: Run Kyverno policy tests
+        run: |
+          kyverno apply kyverno/policies/ \
+            --resource apps/policy-test-suite/compliant-pod.yaml \
+            --resource apps/policy-test-suite/missing-limits.yaml \
+            --resource apps/policy-test-suite/privileged-pod.yaml \
+            --detailed-results || true  # non-zero exit on violations is expected
+
+  diff:
+    name: ArgoCD diff (dry-run)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show changed files
+        run: |
+          git diff --name-only origin/${{ github.base_ref }}...HEAD | \
+          grep '\.yaml$' || echo "No YAML changes"

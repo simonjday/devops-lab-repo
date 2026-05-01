@@ -1,0 +1,100 @@
+# Guestbook — classic demo app, intentionally well-configured for Kyverno compliance
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook
+  namespace: apps
+  labels:
+    app: guestbook
+    env: dev
+    version: v1
+    expose-metrics: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: guestbook
+  template:
+    metadata:
+      labels:
+        app: guestbook
+        env: dev
+        version: v1
+        expose-metrics: "true"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      containers:
+        - name: guestbook
+          image: gcr.io/google-samples/gb-frontend:v4
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: [ALL]
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: GET_HOSTS_FROM
+              value: "dns"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guestbook
+  namespace: apps
+  labels:
+    app: guestbook
+    env: dev
+spec:
+  selector:
+    app: guestbook
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: guestbook
+  namespace: apps
+  labels:
+    app: guestbook
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: guestbook
+  endpoints:
+    - port: http
+      interval: 30s
+      path: /metrics

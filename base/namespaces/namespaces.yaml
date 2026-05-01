@@ -1,0 +1,41 @@
+# Base namespaces for the devops-lab cluster
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps
+  labels:
+    env: dev
+    managed-by: argocd
+    istio-injection: disabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-staging
+  labels:
+    env: staging
+    managed-by: argocd
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    env: platform
+    managed-by: argocd
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kyverno
+  labels:
+    env: platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: policy-test
+  labels:
+    env: dev
+    purpose: kyverno-testing

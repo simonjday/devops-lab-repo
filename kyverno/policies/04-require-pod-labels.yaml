@@ -1,0 +1,28 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-pod-labels
+  annotations:
+    policies.kyverno.io/title: Require Pod Labels
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/description: >-
+      Pods in workload namespaces must have 'app' and 'env' labels for
+      observability, cost allocation, and network policy selection.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: check-labels
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [apps, apps-staging, policy-test]
+      validate:
+        message: "Pod must have 'app' and 'env' labels."
+        pattern:
+          metadata:
+            labels:
+              app: "?*"
+              env: "?*"

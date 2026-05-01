@@ -1,0 +1,19 @@
+# Secrets — never commit these
+*.kubeconfig
+*-token.yaml
+*-secret.yaml
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Temp
+/tmp/
+*.bak

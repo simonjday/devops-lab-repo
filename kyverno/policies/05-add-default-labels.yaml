@@ -1,0 +1,23 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-default-labels
+  annotations:
+    policies.kyverno.io/title: Add Default Labels (Mutation)
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/description: >-
+      Mutates pods in workload namespaces to inject managed-by and cluster labels.
+spec:
+  rules:
+    - name: add-managed-by-label
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [apps, apps-staging, policy-test]
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              managed-by: kyverno
+              cluster: devops-lab

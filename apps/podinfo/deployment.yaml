@@ -1,0 +1,114 @@
+# Podinfo — feature-rich demo app with built-in /metrics, /healthz, /readyz
+# Great for Prometheus demo: exposes Go runtime metrics out of the box
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo
+  namespace: apps
+  labels:
+    app: podinfo
+    env: dev
+    version: "6.6.0"
+    expose-metrics: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: podinfo
+  template:
+    metadata:
+      labels:
+        app: podinfo
+        env: dev
+        version: "6.6.0"
+        expose-metrics: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9898"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      containers:
+        - name: podinfo
+          image: ghcr.io/stefanprodan/podinfo:6.6.0
+          ports:
+            - containerPort: 9898
+              name: http
+            - containerPort: 9999
+              name: grpc
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: [ALL]
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9898
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 9898
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: PODINFO_UI_COLOR
+              value: "#42a5f5"
+            - name: PODINFO_UI_MESSAGE
+              value: "DevOps Lab — podinfo demo"
+            - name: PODINFO_PORT
+              value: "9898"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+  namespace: apps
+  labels:
+    app: podinfo
+    env: dev
+spec:
+  selector:
+    app: podinfo
+  ports:
+    - port: 9898
+      targetPort: 9898
+      name: http
+    - port: 9999
+      targetPort: 9999
+      name: grpc
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: podinfo
+  namespace: apps
+  labels:
+    app: podinfo
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: podinfo
+  endpoints:
+    - port: http
+      interval: 15s
+      path: /metrics

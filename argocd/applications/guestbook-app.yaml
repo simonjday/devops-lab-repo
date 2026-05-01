@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/refresh: "normal"
+  labels:
+    app.kubernetes.io/part-of: devops-lab
+spec:
+  project: devops-lab
+  source:
+    repoURL: https://github.com/YOUR_ORG/devops-lab-repo  # UPDATE THIS
+    targetRevision: HEAD
+    path: apps/guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
