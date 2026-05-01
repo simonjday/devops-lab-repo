@@ -12,7 +12,7 @@ metadata:
 spec:
   project: devops-lab
   source:
-    repoURL: https://github.com/YOUR_ORG/devops-lab-repo  # UPDATE THIS
+    repoURL: https://github.com/simonjday/devops-lab-repo  # UPDATE THIS
     targetRevision: HEAD
     path: apps/guestbook
   destination:

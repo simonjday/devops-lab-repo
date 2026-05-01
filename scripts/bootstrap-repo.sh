@@ -67,9 +67,10 @@ else
 fi
 
 # Patch repo URL into all ArgoCD manifests
+# Use perl -i instead of sed -i — works identically on macOS (BSD) and Linux (GNU)
 log "Patching repo URL into ArgoCD manifests ..."
-find argocd/ -name '*.yaml' -exec \
-  sed -i "s|https://github.com/YOUR_ORG/devops-lab-repo|${REPO_URL}|g" {} \;
+find argocd/ -name '*.yaml' -print0 | \
+  xargs -0 perl -pi -e "s|https://github\.com/YOUR_ORG/devops-lab-repo|${REPO_URL}|g"
 success "ArgoCD manifests updated with: ${REPO_URL}"
 
 # Commit and push
