@@ -1,0 +1,132 @@
+# Redis backend for the Guestbook app
+# leader handles writes, followers handle reads
+# The guestbook frontend finds these via DNS (GET_HOSTS_FROM=dns)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-leader
+  namespace: apps
+  labels:
+    app: redis-leader
+    env: dev
+    role: leader
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-leader
+  template:
+    metadata:
+      labels:
+        app: redis-leader
+        env: dev
+        role: leader
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+        - name: redis-leader
+          image: redis:7.2-alpine
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 999
+            capabilities:
+              drop: [ALL]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-leader
+  namespace: apps
+  labels:
+    app: redis-leader
+    env: dev
+spec:
+  selector:
+    app: redis-leader
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: redis
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-follower
+  namespace: apps
+  labels:
+    app: redis-follower
+    env: dev
+    role: follower
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: redis-follower
+  template:
+    metadata:
+      labels:
+        app: redis-follower
+        env: dev
+        role: follower
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+        - name: redis-follower
+          image: redis:7.2-alpine
+          command: [redis-server, --replicaof, redis-leader, "6379"]
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 999
+            capabilities:
+              drop: [ALL]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-follower
+  namespace: apps
+  labels:
+    app: redis-follower
+    env: dev
+spec:
+  selector:
+    app: redis-follower
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: redis
+  type: ClusterIP
