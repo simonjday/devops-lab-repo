@@ -64,6 +64,42 @@ spec:
           env:
             - name: GET_HOSTS_FROM
               value: "dns"
+
+        # Apache exporter sidecar — exposes /server-status as Prometheus metrics on :9117
+        # gb-frontend:v5 runs Apache (not nginx), mod_status enabled at /server-status
+        - name: apache-exporter
+          image: lusotycoon/apache-exporter:latest
+          args:
+            - --scrape_uri=http://localhost:80/server-status?auto
+          ports:
+            - containerPort: 9117
+              name: metrics
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "32Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop: [ALL]
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9117
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9117
+            initialDelaySeconds: 5
+            periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
@@ -80,6 +116,9 @@ spec:
     - port: 80
       targetPort: 80
       name: http
+    - port: 9117
+      targetPort: 9117
+      name: metrics
   type: ClusterIP
 ---
 apiVersion: monitoring.coreos.com/v1
@@ -95,6 +134,6 @@ spec:
     matchLabels:
       app: guestbook
   endpoints:
-    - port: http
+    - port: metrics
       interval: 30s
       path: /metrics
