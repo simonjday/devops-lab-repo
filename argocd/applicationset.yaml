@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: devops-lab
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - name: guestbook
+            path: apps/guestbook
+            namespace: apps
+          - name: podinfo
+            path: apps/podinfo
+            namespace: apps
+          - name: load-generator
+            path: apps/load-generator
+            namespace: apps
+          - name: kyverno-policies
+            path: kyverno/policies
+            namespace: kyverno
+          - name: prometheus-rules
+            path: prometheus/rules
+            namespace: monitoring
+  template:
+    metadata:
+      name: "{{.name}}"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: devops-lab
+        generator: appset
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: devops-lab
+      source:
+        repoURL: https://github.com/simonjday/devops-lab-repo
+        targetRevision: HEAD
+        path: "{{.path}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{.namespace}}"
+      # ignoreDifferences tells ArgoCD to ignore fields that Kyverno's admission
+      # webhook injects into ClusterPolicy resources after they are applied.
+      # Without this, ArgoCD sees those injected fields as drift and loops
+      # forever in an OutOfSync state even though the sync itself succeeds.
+      # RespectIgnoreDifferences=true (in syncOptions below) ensures these
+      # exclusions are also honoured during the sync operation, not just the diff.
+      ignoreDifferences:
+        - group: kyverno.io
+          kind: ClusterPolicy
+          jqPathExpressions:
+            - .spec.admission
+            - .spec.emitWarning
+            - .spec.rules[].skipBackgroundRequests
+            - .spec.rules[].validate.allowExistingViolations
+            - .spec.rules[].validate.foreach[].deny.conditions.any[].message
+            - .status
+        - group: kyverno.io
+          kind: ClusterPolicy
+          jqPathExpressions:
+            # Kyverno auto-generates rules for Deployments/DaemonSets/etc.
+            # prefixed with "autogen-" — ignore these too
+            - .spec.rules[] | select(.name | startswith("autogen-"))
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - RespectIgnoreDifferences=true  # honour ignoreDifferences during sync
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
