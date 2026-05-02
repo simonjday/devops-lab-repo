@@ -21,7 +21,7 @@ Run the setup from that repo first, then come back here to run the demos against
 
 | Script | What it does |
 |--------|-------------|
-| `scripts/install.sh` | Installs Bifrost via Helm into the `ai-gateway` namespace, registers Anthropic provider, creates MCP service and endpoints, creates a read-only virtual key |
+| `scripts/install.sh --apply` | Installs Bifrost via Helm into the `ai-gateway` namespace, registers Anthropic provider, creates MCP service and endpoints, creates a read-only virtual key | Have to pass --apply to actually install otherwise dry-run is actioned.
 | `scripts/start-mcp-server.sh` | Starts `kubernetes-mcp-server` in SSE mode on `0.0.0.0:8811` |
 | `scripts/warmup-ollama.sh` | Pre-warms Ollama models before demo (optional) |
 
