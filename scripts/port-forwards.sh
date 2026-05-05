@@ -4,10 +4,11 @@
 # Works with any kind cluster regardless of extraPortMappings config
 #
 # Usage:
-#   ./scripts/port-forwards.sh           # start all (platform + apps + ai)
+#   ./scripts/port-forwards.sh           # start all (platform + apps + ai + kubecost)
 #   ./scripts/port-forwards.sh platform  # platform UIs only (ArgoCD/Grafana/Prometheus)
 #   ./scripts/port-forwards.sh apps      # app UIs only (guestbook/podinfo)
 #   ./scripts/port-forwards.sh ai        # AI gateway only (Bifrost + Open WebUI)
+#   ./scripts/port-forwards.sh kubecost  # Kubecost UI only
 #   ./scripts/port-forwards.sh stop      # stop all
 #   ./scripts/port-forwards.sh status    # show what's running
 # =============================================================================
@@ -33,6 +34,10 @@ APP_FORWARDS=(
 
 AI_FORWARDS=(
   "Bifrost|svc/bifrost|ai-gateway|8080|8080"
+)
+
+KUBECOST_FORWARDS=(
+  "Kubecost|svc/kubecost-cost-analyzer|kubecost|9099|9090"
 )
 
 start_one() {
@@ -106,6 +111,19 @@ start_forwards() {
     start_open_webui
   fi
 
+  if [[ "${mode}" == "all" || "${mode}" == "kubecost" ]]; then
+    echo -e "\n${BOLD}${CYAN}── Kubecost ──────────────────────────────${NC}"
+    # Check kubecost namespace exists before attempting forward
+    if kubectl get namespace kubecost &>/dev/null; then
+      for entry in "${KUBECOST_FORWARDS[@]}"; do
+        IFS='|' read -r name resource ns local_port remote_port <<< "${entry}"
+        start_one "${name}" "${resource}" "${ns}" "${local_port}" "${remote_port}"
+      done
+    else
+      echo -e "  ${YELLOW}!${NC} Kubecost not installed — skipping (run: helm install kubecost ...)"
+    fi
+  fi
+
   # Get ArgoCD password
   PW=$(kubectl -n argocd get secret argocd-initial-admin-secret \
     -o jsonpath="{.data.password}" 2>/dev/null | base64 -d 2>/dev/null || echo "N/A")
@@ -128,6 +146,9 @@ start_forwards() {
     echo -e "  ${YELLOW}Note:${NC} Set BIFROST_VIRTUAL_KEY before using Bifrost:"
     echo -e "        export BIFROST_VIRTUAL_KEY=\"sk-bf-your-key-here\""
     echo -e "        Get your key from http://localhost:8080 → Keys"
+  fi
+  if [[ "${mode}" == "all" || "${mode}" == "kubecost" ]]; then
+    echo -e "  ${BLUE}Kubecost${NC}     http://localhost:9099"
   fi
   echo ""
   echo -e "${YELLOW}Stop all:${NC} ./scripts/port-forwards.sh stop"
@@ -156,7 +177,7 @@ stop_forwards() {
 
   # Belt-and-braces: kill any kubectl process holding our known ports directly
   # This catches port-forwards started in other terminal sessions
-  for port in 8080 9080 3000 9090 9093 8888 9898; do
+  for port in 8080 9080 3000 9090 9093 8888 9898 9099; do
     pids_on_port=$(lsof -ti tcp:${port} 2>/dev/null || true)
     if [ -n "${pids_on_port}" ]; then
       while IFS= read -r pid_on_port; do
@@ -197,12 +218,20 @@ status_forwards() {
   else
     echo -e "  stopped  Open WebUI"
   fi
+
+  echo -e "\n${BOLD}${CYAN}── Kubecost ───────────────────────────────${NC}"
+  if pgrep -f "port-forward.*kubecost" &>/dev/null || \
+     pgrep -f "port-forward.*9099" &>/dev/null; then
+    echo -e "  ${GREEN}running${NC} Kubecost → http://localhost:9099"
+  else
+    echo -e "  stopped  Kubecost"
+  fi
   echo ""
 }
 
 case "${1:-all}" in
-  all|platform|apps|ai) start_forwards "${1:-all}" ;;
-  stop)                  stop_forwards ;;
-  status)                status_forwards ;;
-  *)                     echo "Usage: $0 [all|platform|apps|ai|stop|status]" ;;
+  all|platform|apps|ai|kubecost) start_forwards "${1:-all}" ;;
+  stop)                           stop_forwards ;;
+  status)                         status_forwards ;;
+  *)                              echo "Usage: $0 [all|platform|apps|ai|kubecost|stop|status]" ;;
 esac
