@@ -37,7 +37,7 @@ AI_FORWARDS=(
 )
 
 KUBECOST_FORWARDS=(
-  "Kubecost|svc/kubecost-cost-analyzer|kubecost|9099|9090"
+  "Kubecost|svc/kubecost-frontend|kubecost|9099|9090"
 )
 
 start_one() {
