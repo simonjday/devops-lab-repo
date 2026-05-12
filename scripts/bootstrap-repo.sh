@@ -86,6 +86,10 @@ else
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: ${CLUSTER_NAME}
+# Bind kube-proxy metrics to 0.0.0.0 so Prometheus can scrape from the pod network
+# (KubeProxyConfiguration must be at cluster level, not in kubeadmConfigPatches)
+kubeProxyConfiguration:
+  metricsBindAddress: "0.0.0.0:10249"
 nodes:
   - role: control-plane
     kubeadmConfigPatches:
@@ -94,20 +98,28 @@ nodes:
         nodeRegistration:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
+      - |
+        kind: ClusterConfiguration
+        controllerManager:
+          extraArgs:
+            bind-address: "0.0.0.0"
+        scheduler:
+          extraArgs:
+            bind-address: "0.0.0.0"
+        etcd:
+          local:
+            extraArgs:
+              listen-metrics-urls: "http://0.0.0.0:2381"
     extraPortMappings:
-      # ArgoCD UI
       - containerPort: 30950
         hostPort: 9080
         protocol: TCP
-      # Grafana
       - containerPort: 30300
         hostPort: 3000
         protocol: TCP
-      # Prometheus
       - containerPort: 30900
         hostPort: 9090
         protocol: TCP
-      # General ingress
       - containerPort: 80
         hostPort: 8080
         protocol: TCP
@@ -121,7 +133,6 @@ nodes:
         nodeRegistration:
           kubeletExtraArgs:
             node-labels: "workload=apps"
-
 networking:
   podSubnet: "10.244.0.0/16"
   serviceSubnet: "10.96.0.0/12"
