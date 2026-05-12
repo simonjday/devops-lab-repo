@@ -37,7 +37,7 @@ AI_FORWARDS=(
 )
 
 KUBECOST_FORWARDS=(
-  "Kubecost|svc/kubecost-frontend|kubecost|9099|9090"
+  "Kubecost|svc/kubecost-frontend|kubecost|9002|9090"
 )
 
 start_one() {
@@ -148,7 +148,7 @@ start_forwards() {
     echo -e "        Get your key from http://localhost:8080 → Keys"
   fi
   if [[ "${mode}" == "all" || "${mode}" == "kubecost" ]]; then
-    echo -e "  ${BLUE}Kubecost${NC}     http://localhost:9099"
+    echo -e "  ${BLUE}Kubecost${NC}     http://localhost:9002"
   fi
   echo ""
   echo -e "${YELLOW}Stop all:${NC} ./scripts/port-forwards.sh stop"
@@ -177,7 +177,7 @@ stop_forwards() {
 
   # Belt-and-braces: kill any kubectl process holding our known ports directly
   # This catches port-forwards started in other terminal sessions
-  for port in 8080 9080 3000 9090 9093 8888 9898 9099; do
+  for port in 8080 9080 3000 9090 9093 8888 9898 9002; do
     pids_on_port=$(lsof -ti tcp:${port} 2>/dev/null || true)
     if [ -n "${pids_on_port}" ]; then
       while IFS= read -r pid_on_port; do
@@ -221,8 +221,8 @@ status_forwards() {
 
   echo -e "\n${BOLD}${CYAN}── Kubecost ───────────────────────────────${NC}"
   if pgrep -f "port-forward.*kubecost" &>/dev/null || \
-     pgrep -f "port-forward.*9099" &>/dev/null; then
-    echo -e "  ${GREEN}running${NC} Kubecost → http://localhost:9099"
+     pgrep -f "port-forward.*9002" &>/dev/null; then
+    echo -e "  ${GREEN}running${NC} Kubecost → http://localhost:9002"
   else
     echo -e "  stopped  Kubecost"
   fi

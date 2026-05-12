@@ -8,7 +8,8 @@ metadata:
     policies.kyverno.io/severity: critical
     policies.kyverno.io/description: >-
       Privileged containers have full host access and bypass container isolation.
-      This policy BLOCKS them (Enforce mode).
+      This policy BLOCKS them (Enforce mode). Excludes kubecost namespace
+      which requires elevated permissions for ClickHouse (v3).
 spec:
   validationFailureAction: Enforce
   background: true
@@ -18,6 +19,10 @@ spec:
         any:
           - resources:
               kinds: [Pod]
+      exclude:
+        any:
+          - resources:
+              namespaces: [kubecost]
       validate:
         message: "Privileged containers are not allowed. Remove securityContext.privileged: true."
         pattern:

@@ -1,0 +1,25 @@
+# Kubecost v3.0.x values for devops-lab kind cluster
+# Heavier than v2.8 — requires PVC for ClickHouse
+# UI will show data ingestion progress for 20-30min on first install
+
+global:
+  clusterId: devops-lab
+
+# Storage class for ClickHouse PVC
+# kind uses local-path-provisioner exposed as 'standard'
+persistentVolume:
+  storageClass: standard
+
+# Disable network costs — requires privileged DaemonSet (blocked by Kyverno)
+networkCosts:
+  enabled: false
+
+# Custom pricing required for kind nodes — no instance_type labels means
+# the aggregator produces NaN values causing a blank UI
+# Using AWS on-demand rates as a non-zero baseline
+kubecostProductConfigs:
+  defaultIdle: true
+  customPricesEnabled: true
+  cpuCost: "0.031611"
+  memoryCost: "0.004237"
+  storageCost: "0.00005479"

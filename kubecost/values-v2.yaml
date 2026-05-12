@@ -1,0 +1,24 @@
+# Kubecost v2.8.x values for devops-lab kind cluster
+# Recommended for kind/dev — lightweight, no ClickHouse, no mandatory PVC
+# Skip v2.9 — it is a migration-only stepping stone to v3, broken for free tier
+
+kubecostToken: ""
+
+global:
+  clusterId: devops-lab
+
+# Disable PVCs — ephemeral kind cluster, data resets on rebuild
+prometheus:
+  server:
+    persistentVolume:
+      enabled: false
+  alertmanager:
+    persistentVolume:
+      enabled: false
+
+persistentVolume:
+  enabled: false
+
+# Disable network costs — requires privileged DaemonSet (blocked by Kyverno)
+networkCosts:
+  enabled: false

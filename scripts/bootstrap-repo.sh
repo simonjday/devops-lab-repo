@@ -263,7 +263,44 @@ else
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
-# STEP 6 — RBAC (Bifrost / MCP viewer SA)
+# STEP 6 — Kubecost v2.8.x
+# ═════════════════════════════════════════════════════════════════════════════
+header "Step 6 — Kubecost v3"
+
+# Kubecost v3: ClickHouse-backed, 10-min granularity
+# networkCosts disabled — Kyverno blocks privileged DaemonSet
+# Custom pricing applied — kind nodes have no instance_type labels (blank UI fix)
+helm repo add kubecost-v3 https://kubecost.github.io/kubecost/ 2>/dev/null || true
+helm repo update
+
+if ! helm status kubecost -n kubecost &>/dev/null; then
+  kubectl create namespace kubecost --dry-run=client -o yaml | kubectl apply -f -
+
+  helm upgrade --install kubecost kubecost-v3/kubecost \
+    --namespace kubecost \
+    --set global.clusterId=devops-lab \
+    --set persistentVolume.storageClass=standard \
+    --set networkCosts.enabled=false \
+    --timeout 10m \
+    --wait
+
+  # Apply custom pricing immediately — prevents blank UI on kind
+  helm upgrade kubecost kubecost-v3/kubecost \
+    --namespace kubecost \
+    --reuse-values \
+    --set kubecostProductConfigs.defaultIdle=true \
+    --set kubecostProductConfigs.customPricesEnabled=true \
+    --set kubecostProductConfigs.cpuCost=0.031611 \
+    --set kubecostProductConfigs.memoryCost=0.004237 \
+    --set kubecostProductConfigs.storageCost=0.00005479
+
+  success "Kubecost v3 installed"
+else
+  warn "Kubecost already installed — skipping"
+fi
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 7 — RBAC (Bifrost / MCP viewer SA)
 # ═════════════════════════════════════════════════════════════════════════════
 header "Step 6 — RBAC"
 kubectl apply -f base/rbac/rbac.yaml
@@ -272,7 +309,7 @@ success "Viewer ServiceAccount ready"
 # ═════════════════════════════════════════════════════════════════════════════
 # STEP 7 — GitHub repo + push
 # ═════════════════════════════════════════════════════════════════════════════
-header "Step 7 — GitHub Repository"
+header "Step 8 — GitHub Repository"
 
 if [ "${SKIP_GITHUB}" = true ]; then
   warn "--skip-github set — skipping repo creation and push"
@@ -320,7 +357,7 @@ fi
 # ═════════════════════════════════════════════════════════════════════════════
 # STEP 8 — ArgoCD project + ApplicationSet
 # ═════════════════════════════════════════════════════════════════════════════
-header "Step 8 — ArgoCD Project + ApplicationSet"
+header "Step 9 — ArgoCD Project + ApplicationSet"
 
 kubectl apply -f argocd/projects/devops-lab-project.yaml 2>&1 \
   | grep -v "unrecognized format" || true
