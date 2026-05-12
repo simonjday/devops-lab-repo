@@ -1,5 +1,3 @@
-# ApplicationSet — generates all devops-lab apps from a list
-# This is the single entrypoint: apply this one resource and ArgoCD manages everything
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -37,12 +35,23 @@ spec:
     spec:
       project: devops-lab
       source:
-        repoURL: https://github.com/simonjday/devops-lab-repo  # UPDATE THIS
+        repoURL: https://github.com/simonjday/devops-lab-repo
         targetRevision: HEAD
         path: "{{.path}}"
       destination:
         server: https://kubernetes.default.svc
         namespace: "{{.namespace}}"
+      ignoreDifferences:
+        - group: kyverno.io
+          kind: ClusterPolicy
+          jqPathExpressions:
+            - .spec.admission
+            - .spec.emitWarning
+            - .spec.rules[].skipBackgroundRequests
+            - .spec.rules[].validate.allowExistingViolations
+            - .spec.rules[].validate.foreach[].deny.conditions.any[].message
+            - .spec.rules[] | select(.name | startswith("autogen-"))
+            - .status
       syncPolicy:
         automated:
           prune: true
@@ -50,6 +59,7 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
+          - RespectIgnoreDifferences=true
         retry:
           limit: 3
           backoff:
