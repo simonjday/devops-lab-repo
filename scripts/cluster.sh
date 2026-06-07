@@ -215,7 +215,8 @@ cmd_start() {
         || log "argocd-server not found — skipping (may still be starting)"
 
       log "Waiting for Kyverno to be Running ..."
-      kubectl rollout status deployment/kyverno -n kyverno --timeout=120s 2>/dev/null \
+      # Kyverno v3+ splits into multiple deployments — the admission controller is the primary one
+      kubectl rollout status deployment/kyverno-admission-controller -n kyverno --timeout=120s 2>/dev/null \
         || log "Kyverno not found — skipping"
 
       # Give ArgoCD a moment to reconnect to the repo and reconcile

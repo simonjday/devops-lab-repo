@@ -1,0 +1,25 @@
+# kube-prometheus-stack Helm values
+# Release: kube-prometheus-stack
+# Namespace: monitoring
+# Chart: kube-prometheus-stack-85.0.1
+# Last updated: 2026-06-05
+#
+# Upgrade command:
+#   helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#     -n monitoring \
+#     --version 85.0.1 \
+#     -f values.yaml \
+#     --kube-context kind-devops-lab
+
+# -----------------------------------------------------------------------
+# kube-state-metrics
+# -----------------------------------------------------------------------
+# By default kube-state-metrics v2+ does not expose pod labels as Prometheus
+# metrics. The --metric-labels-allowlist arg explicitly enables the labels
+# needed for Kubecost cost attribution by team.
+#
+# Without this, kube_pod_labels returns empty and Kubecost shows all
+# workloads as "Unallocated" even when pods are correctly labelled.
+kube-state-metrics:
+  extraArgs:
+    - --metric-labels-allowlist=pods=[team,cost-centre,environment,app]
